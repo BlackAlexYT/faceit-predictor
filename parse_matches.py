@@ -97,7 +97,8 @@ async def get_player_pre_match_stats(session, player_id, target_match_id, map_na
 
     def calc_rec(history_slice):
         c = len(history_slice)
-        if c == 0: return {'wr': 0, 'k': 0, 'a': 0, 'kd': 0.0, 'adr': 0.0, 'hs': 0.0}
+        if c == 0:
+            return {'wr': 0, 'k': 0, 'a': 0, 'kd': 0.0, 'adr': 0.0, 'hs': 0.0, 'd': 0.0}
         return {
             'wr': round(sum(1 for x in history_slice if x['stats'].get('Result') == '1') / c * 100, 1),
             'k': round(sum(int(x['stats'].get('Kills', 0)) for x in history_slice) / c, 1),
@@ -131,7 +132,8 @@ async def get_player_pre_match_stats(session, player_id, target_match_id, map_na
             skills = [p.get('skill_level', 0) for p in m['teams'][opp_faction]['players'] if p.get('skill_level')]
             if skills:
                 match_opp_50.append(sum(skills) / len(skills))
-        if match_opp_50: opp_skill_50 = round(sum(match_opp_50) / len(match_opp_50), 2)
+        if match_opp_50:
+            opp_skill_50 = round(sum(match_opp_50) / len(match_opp_50), 2)
 
         h_pre_history = h_items[h_target_idx + 1: h_target_idx + 6]
         match_opp_5 = []
@@ -141,10 +143,12 @@ async def get_player_pre_match_stats(session, player_id, target_match_id, map_na
             skills = [p.get('skill_level', 0) for p in m['teams'][opp_faction]['players'] if p.get('skill_level')]
             if skills:
                 match_opp_5.append(sum(skills) / len(skills))
-        if match_opp_5: opp_skill_5 = round(sum(match_opp_5) / len(match_opp_5), 2)
+        if match_opp_5:
+            opp_skill_5 = round(sum(match_opp_5) / len(match_opp_5), 2)
 
     s_data = await get_html(session, f"{api_url}players/{player_id}/stats/{game_id}")
-    if not s_data: return None
+    if not s_data:
+        return None
     lt = s_data.get('lifetime', {})
     lt_m = int(lt.get('Matches', 0))
     m_res = 100 if m_perf.get('Result') == '1' else 0
@@ -181,17 +185,21 @@ async def get_player_pre_match_stats(session, player_id, target_match_id, map_na
 
 async def process_match_leakfree(session, player_id):
     history = await get_html(session, f"{api_url}players/{player_id}/history?game=cs2&limit=1")
-    if not history or not history.get('items'): return None
+    if not history or not history.get('items'):
+        return None
     m_basic = history['items'][0]
     m_id = m_basic['match_id']
-    if m_basic['finished_at'] < (time.time() - 30 * 60): return None
+    if m_basic['finished_at'] < (time.time() - 30 * 60):
+        return None
 
     m_data = await get_html(session, f"{api_url}matches/{m_id}")
-    if not m_data or m_data.get('calculate_elo') is not True: return None
+    if not m_data or m_data.get('calculate_elo') is not True:
+        return None
 
     internal_url = f'https://www.faceit.com/api/match/v2/match/{m_id}'
     internal_data = await get_html(session, internal_url)
-    if not internal_data or 'payload' not in internal_data: return None
+    if not internal_data or 'payload' not in internal_data:
+        return None
 
     elo_map = {}
     party_size_map = {}
@@ -231,59 +239,62 @@ async def process_match_leakfree(session, player_id):
             prefixes.append(f"{t}_p{p_idx}")
 
     results = await asyncio.gather(*tasks)
-    if None in results: return None
+    if None in results:
+        return None
 
     row = {'match_id': m_id, 'winner': winner, 'team1_score': s1, 'team2_score': s2, 'map': map_name}
 
     for i, p_stats in enumerate(results):
         pref = prefixes[i]
         curr_p_id = teams[pref[:2]][int(pref[-1])]['player_id']
+        try:
+            row.update({
+                # Overall player info
+                f"{pref}_elo": p_stats['elo'],
+                f"{pref}_party_size": party_size_map.get(curr_p_id, 1),
+                f"{pref}_is_premium": premium_map.get(curr_p_id, (0, 1))[0],
+                f"{pref}_is_free": premium_map.get(curr_p_id, (0, 1))[1],
+                f"{pref}_time_diff": p_stats['time_diff'],
 
-        row.update({
-            # Overall player info
-            f"{pref}_elo": p_stats['elo'],
-            f"{pref}_party_size": party_size_map.get(curr_p_id, 1),
-            f"{pref}_is_premium": premium_map.get(curr_p_id, (0, 1))[0],
-            f"{pref}_is_free": premium_map.get(curr_p_id, (0, 1))[1],
-            f"{pref}_time_diff": p_stats['time_diff'],
+                # Lifetime statistics
+                f"{pref}_life_matches": p_stats['life']['matches'],
+                f"{pref}_life_wr": p_stats['life']['wr'],
+                f"{pref}_life_kd": p_stats['life']['kd'],
+                f"{pref}_life_adr": p_stats['life']['adr'],
 
-            # Lifetime statistics
-            f"{pref}_life_matches": p_stats['life']['matches'],
-            f"{pref}_life_wr": p_stats['life']['wr'],
-            f"{pref}_life_kd": p_stats['life']['kd'],
-            f"{pref}_life_adr": p_stats['life']['adr'],
+                # Last 50 matches statistics
+                f"{pref}_rec50_opp_skill": p_stats['opp_skill_50'],
+                f"{pref}_rec50_wr": p_stats['rec50']['wr'],
+                f"{pref}_rec50_kd": p_stats['rec50']['kd'],
+                f"{pref}_rec50_adr": p_stats['rec50']['adr'],
+                f"{pref}_rec50_hs": p_stats['rec50']['hs'],
+                f"{pref}_rec50_k": p_stats['rec50']['k'],
+                f"{pref}_rec50_a": p_stats['rec50']['a'],
+                f"{pref}_rec50_d": p_stats['rec50']['d'],
 
-            # Last 50 matches statistics
-            f"{pref}_rec50_opp_skill": p_stats['opp_skill_50'],
-            f"{pref}_rec50_wr": p_stats['rec50']['wr'],
-            f"{pref}_rec50_kd": p_stats['rec50']['kd'],
-            f"{pref}_rec50_adr": p_stats['rec50']['adr'],
-            f"{pref}_rec50_hs": p_stats['rec50']['hs'],
-            f"{pref}_rec50_k": p_stats['rec50']['k'],
-            f"{pref}_rec50_a": p_stats['rec50']['a'],
-            f"{pref}_rec50_d": p_stats['rec50']['d'],
+                # Last 5 matches statistics
+                f"{pref}_rec5_opp_skill": p_stats['opp_skill_5'],
+                f"{pref}_rec5_wr": p_stats['rec5']['wr'],
+                f"{pref}_rec5_kd": p_stats['rec5']['kd'],
+                f"{pref}_rec5_adr": p_stats['rec5']['adr'],
+                f"{pref}_rec5_hs": p_stats['rec5']['hs'],
+                f"{pref}_rec5_k": p_stats['rec5']['k'],
+                f"{pref}_rec5_a": p_stats['rec5']['a'],
+                f"{pref}_rec5_d": p_stats['rec5']['d'],
 
-            # Last 5 matches statistics
-            f"{pref}_rec5_opp_skill": p_stats['opp_skill_5'],
-            f"{pref}_rec5_wr": p_stats['rec5']['wr'],
-            f"{pref}_rec5_kd": p_stats['rec5']['kd'],
-            f"{pref}_rec5_adr": p_stats['rec5']['adr'],
-            f"{pref}_rec5_hs": p_stats['rec5']['hs'],
-            f"{pref}_rec5_k": p_stats['rec5']['k'],
-            f"{pref}_rec5_a": p_stats['rec5']['a'],
-            f"{pref}_rec5_d": p_stats['rec5']['d'],
+                # Map statistics
+                f"{pref}_map_matches": p_stats['map']['matches'],
+                f"{pref}_map_wr": p_stats['map']['wr'],
+                f"{pref}_map_kd": p_stats['map']['kd'],
+                f"{pref}_map_adr": p_stats['map']['adr'],
+                f"{pref}_map_hs": p_stats['map']['hs'],
+                f"{pref}_map_k": p_stats['map']['k'],
+                f"{pref}_map_a": p_stats['map']['a'],
+                f"{pref}_map_d": p_stats['map']['d'],
 
-            # Map statistics
-            f"{pref}_map_matches": p_stats['map']['matches'],
-            f"{pref}_map_wr": p_stats['map']['wr'],
-            f"{pref}_map_kd": p_stats['map']['kd'],
-            f"{pref}_map_adr": p_stats['map']['adr'],
-            f"{pref}_map_hs": p_stats['map']['hs'],
-            f"{pref}_map_k": p_stats['map']['k'],
-            f"{pref}_map_a": p_stats['map']['a'],
-            f"{pref}_map_d": p_stats['map']['d'],
-
-        })
+            })
+        except:
+            pass
         for c in TRACKED_COUNTRIES:
             row[f"{pref}_country_{c}"] = 1 if p_stats['country'] == c else 0
         row[f"{pref}_country_other"] = 1 if p_stats['country'] not in TRACKED_COUNTRIES else 0
@@ -292,7 +303,8 @@ async def process_match_leakfree(session, player_id):
 
 
 def save_to_csv(results):
-    if not results: return
+    if not results:
+        return
     file_exists = os.path.isfile(OUTPUT_CSV) and os.path.getsize(OUTPUT_CSV) > 0
     with open(OUTPUT_CSV, 'a', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=results[0].keys())
@@ -302,7 +314,8 @@ def save_to_csv(results):
 
 
 async def main():
-    if not os.path.exists(INPUT_CSV): return
+    if not os.path.exists(INPUT_CSV):
+        return
     with open(INPUT_CSV, 'r') as f:
         uids = [r['uid'] for r in csv.DictReader(f)]
     async with aiohttp.ClientSession() as session:
