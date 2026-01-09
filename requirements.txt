@@ -1,0 +1,2 @@
+aiohttp==3.13.2
+fake_useragent==2.2.0
