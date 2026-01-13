@@ -91,9 +91,9 @@ async def get_player_pre_match_stats(session, player_id, pre_match_elo, match_ti
     lt = s_data.get('lifetime', {})
     life_pre = {
         'matches': int(lt.get('Matches', 0)),
-        'wr': lt.get('Win Rate %', 0),
-        'kd': lt.get('Average K/D Ratio', 0),
-        'adr': lt.get('ADR', 0)
+        'wr': float(lt.get('Win Rate %', 0)),
+        'kd': float(lt.get('Average K/D Ratio', 0)),
+        'adr': float(lt.get('ADR', 0))
     }
 
     map_pre = {'Mirage': {'matches': 0, 'wr': 0.0, 'k': 0.0, 'a': 0.0, 'kd': 0.0, 'adr': 0.0, 'hs': 0.0, 'd': 0.0},
