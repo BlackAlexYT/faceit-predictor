@@ -5,7 +5,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-Backend-violet)
 ![ONNX](https://img.shields.io/badge/ONNX-Inference-yellow)
 ![Chrome](https://img.shields.io/badge/Chrome-Extension-chrome)
-[![ru](https://img.shields.io/badge/lang-ru-green.svg)](https://github.com/your-username/faceit-predictor/blob/main/README_RU.md)
+[![ru](https://img.shields.io/badge/lang-ru-green.svg)](https://github.com/BlackAlexYT/faceit-predictor/blob/main/README_RU.md)
 
 **Faceit Predictor** is an intelligent system designed to predict Counter-Strike 2 match outcomes on the FACEIT platform in real-time. The project utilizes a DeepSets neural network architecture to analyze player statistics and display win probabilities for each team directly in the browser.
 
