@@ -1,0 +1,6 @@
+aiohttp==3.13.2
+fake_useragent==2.2.0
+fastapi==0.128.0
+numpy==2.4.1
+onnxruntime==1.23.2
+uvicorn==0.40.0

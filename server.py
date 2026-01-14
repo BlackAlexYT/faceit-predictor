@@ -8,7 +8,7 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from parse_ongoing import process_match, TRACKED_COUNTRIES
+from parsers.parse_ongoing import process_match, TRACKED_COUNTRIES
 
 models_cache = {}
 

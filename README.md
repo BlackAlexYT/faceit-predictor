@@ -71,7 +71,7 @@ git clone https://github.com/your-username/faceit-predictor.git
 cd faceit-predictor
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r server_requirements.txt
 
 # Run the server (ensure .onnx models are located in the models/ folder)
 python server.py
