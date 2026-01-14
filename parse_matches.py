@@ -30,7 +30,7 @@ fake_headers = {
 INPUT_CSV = "faceit_players_extracted.csv"
 OUTPUT_CSV = "dataset_ultimate_plus.csv"
 
-semaphore_keyapi = asyncio.Semaphore(300)  # Approximately 25 * len(proxies)
+semaphore_keyapi = asyncio.Semaphore(220)  # Approximately 25 * len(proxies)
 semaphore_pubapi = asyncio.Semaphore(12)  # Approximately len(proxies)
 
 TRACKED_COUNTRIES = ['ru', 'ua', 'pl', 'kz', 'de', 'gb', 'fi', 'se', 'dk', 'fr']

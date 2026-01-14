@@ -21,7 +21,7 @@ lock = asyncio.Lock()
 
 def load_models():
     """Loads models once while server is starting"""
-    maps = ['mirage', 'dust2', 'inferno', 'ancient', 'nuke', 'overpass', 'train']
+    maps = ['mirage', 'dust2', 'inferno', 'ancient', 'nuke', 'overpass', 'train', 'anubis']
     for m_name in maps:
         m_path = f"models/model_de_{m_name}.onnx"
         s_path = f"models/scaler_params_de_{m_name}.npz"

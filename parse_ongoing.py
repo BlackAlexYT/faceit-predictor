@@ -10,10 +10,9 @@ from parse_matches import get_html
 game_id = "cs2"
 api_url = "https://open.faceit.com/data/v4/"
 
-
 OUTPUT_CSV = "testikkkk.csv"
 
-semaphore_keyapi = asyncio.Semaphore(300)  # Approximately 25 * len(proxies)
+semaphore_keyapi = asyncio.Semaphore(220)  # Approximately 25 * len(proxies)
 semaphore_pubapi = asyncio.Semaphore(12)  # Approximately len(proxies)
 
 TRACKED_COUNTRIES = ['ru', 'ua', 'pl', 'kz', 'de', 'gb', 'fi', 'se', 'dk', 'fr']
@@ -102,7 +101,8 @@ async def get_player_pre_match_stats(session, player_id, pre_match_elo, match_ti
                'Ancient': {'matches': 0, 'wr': 0.0, 'k': 0.0, 'a': 0.0, 'kd': 0.0, 'adr': 0.0, 'hs': 0.0, 'd': 0.0},
                'Train': {'matches': 0, 'wr': 0.0, 'k': 0.0, 'a': 0.0, 'kd': 0.0, 'adr': 0.0, 'hs': 0.0, 'd': 0.0},
                'Overpass': {'matches': 0, 'wr': 0.0, 'k': 0.0, 'a': 0.0, 'kd': 0.0, 'adr': 0.0, 'hs': 0.0, 'd': 0.0},
-               'Nuke': {'matches': 0, 'wr': 0.0, 'k': 0.0, 'a': 0.0, 'kd': 0.0, 'adr': 0.0, 'hs': 0.0, 'd': 0.0}, }
+               'Nuke': {'matches': 0, 'wr': 0.0, 'k': 0.0, 'a': 0.0, 'kd': 0.0, 'adr': 0.0, 'hs': 0.0, 'd': 0.0},
+               'Anubis': {'matches': 0, 'wr': 0.0, 'k': 0.0, 'a': 0.0, 'kd': 0.0, 'adr': 0.0, 'hs': 0.0, 'd': 0.0}, }
 
     for seg in s_data.get('segments', []):
         for map_name in map_pre:
@@ -281,6 +281,16 @@ async def process_match(session, m_id):
                 f"{pref}_train_k": p_stats['map']['Train']['k'],
                 f"{pref}_train_a": p_stats['map']['Train']['a'],
                 f"{pref}_train_d": p_stats['map']['Train']['d'],
+
+                f"{pref}_anubis_matches": p_stats['map']['Anubis']['matches'],
+                f"{pref}_anubis_wr": p_stats['map']['Anubis']['wr'],
+                f"{pref}_anubis_kd": p_stats['map']['Anubis']['kd'],
+                f"{pref}_anubis_adr": p_stats['map']['Anubis']['adr'],
+                f"{pref}_anubis_hs": p_stats['map']['Anubis']['hs'],
+                f"{pref}_anubis_k": p_stats['map']['Anubis']['k'],
+                f"{pref}_anubis_a": p_stats['map']['Anubis']['a'],
+                f"{pref}_anubis_d": p_stats['map']['Anubis']['d'],
+
             })
         except:
             pass
