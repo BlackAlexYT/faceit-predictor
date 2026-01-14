@@ -9,6 +9,11 @@
 
 **Faceit Predictor** is an intelligent system designed to predict Counter-Strike 2 match outcomes on the FACEIT platform in real-time. The project utilizes a DeepSets neural network architecture to analyze player statistics and display win probabilities for each team directly in the browser.
 
+## 🕹 Demonstation
+
+![Extension Demo](https://via.placeholder.com/800x400?text=Place+Your+GIF+Here)
+*The widget automatically analyzes card picks and team lineups*
+
 ## ✨ Features
 
 *   **Real-time Prediction:** Analyzes the match immediately after the lobby is formed (during the Map picking phase).
@@ -34,6 +39,7 @@ The project consists of three main modules:
     *   Browser extension (Manifest V3).
     *   UI injection into the Faceit DOM tree.
 
+```mermaid
 graph LR
 A[Faceit Matchroom] -->|Parsing| B(Chrome Extension)
 B -->|Match ID| C{Backend API}
@@ -45,6 +51,7 @@ B -->|Inject UI| A
 
     style E fill:#f9f,stroke:#333,stroke-width:2px
     style B fill:#bbf,stroke:#333,stroke-width:2px
+```
 
 ## 🚀 Installation & Setup
 
