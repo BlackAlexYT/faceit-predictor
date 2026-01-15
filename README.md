@@ -10,9 +10,9 @@
 
 **Faceit Predictor** is an intelligent system designed to predict Counter-Strike 2 match outcomes on the FACEIT platform in real-time. The project utilizes a DeepSets neural network architecture to analyze player statistics and display win probabilities for each team directly in the browser.
 
-## 🕹 Demonstation
+## 🕹 Demonstration
 
-![Extension Demo](data/demo.mp4)
+![Extension Demo](data/demo.gif)
 *The widget automatically analyzes card picks and team lineups*
 
 ## ✨ Features
