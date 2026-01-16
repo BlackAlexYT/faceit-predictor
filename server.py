@@ -8,7 +8,7 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from parsers.parse_ongoing import process_match, TRACKED_COUNTRIES
+from parsers.parse_ongoing import process_match
 
 models_cache = {}
 
@@ -110,7 +110,8 @@ async def get_predictions(match_id: str):
             "match_id": match_id,
             "actual_map": match_data.get('map'),
             "predictions": results_output,
-            "timestamp": datetime.now().isoformat()
+            "match_data": match_data,
+            "timestamp": datetime.now().isoformat(),
         }
 
         add_to_cache(match_id, final_response)
@@ -126,13 +127,11 @@ def transform_row_for_map(full_row, target_map):
             'rec50_opp_skill', 'rec50_wr', 'rec50_kd', 'rec50_adr', 'rec50_hs', 'rec50_k', 'rec50_a', 'rec50_d',
             'rec5_opp_skill', 'rec5_wr', 'rec5_kd', 'rec5_adr', 'rec5_hs', 'rec5_k', 'rec5_a', 'rec5_d']
     map_f = ['matches', 'wr', 'kd', 'adr', 'hs', 'k', 'a', 'd']
-    countries = [f"country_{c}" for c in TRACKED_COUNTRIES] + ["country_other"]
 
     vector = []
     for p in prefixes:
         for f in base: vector.append(full_row.get(f"{p}_{f}", 0))
         for f in map_f: vector.append(full_row.get(f"{p}_{target_map}_{f}", 0))
-        for f in countries: vector.append(full_row.get(f"{p}_{f}", 0))
 
     return np.array(vector).reshape(1, -1)
 
