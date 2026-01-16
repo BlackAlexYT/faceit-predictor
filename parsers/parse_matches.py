@@ -30,8 +30,8 @@ fake_headers = {
     "Referer": "https://www.faceit.com/en/",
 }
 
-INPUT_CSV = "../data/faceit_players_extracted.csv"
-OUTPUT_CSV = "../data/dataset_ultimate_plus.csv"
+INPUT_CSV = "data/faceit_players_extracted.csv"
+OUTPUT_CSV = "data/dataset_ultimate_plus.csv"
 
 semaphore_keyapi = asyncio.Semaphore(220)  # Approximately 25 * len(proxies)
 semaphore_pubapi = asyncio.Semaphore(12)  # Approximately len(proxies)
