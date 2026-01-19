@@ -3,6 +3,19 @@ console.log('[FP-DEBUG] Script loaded and running...');
 let currentMatchId = null;
 let isWindowVisible = false;
 let currentPredictionData = null;
+let lastSeenMatchId = null;
+
+const networkObserver = new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+        const match = entry.name.match(/(1-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/);
+        if (match && match[1]) {
+            lastSeenMatchId = match[1];
+            console.log('[FP-DEBUG] NetworkObserver caught ID:', lastSeenMatchId);
+        }
+    }
+});
+networkObserver.observe({entryTypes: ['resource']});
+
 
 const STORAGE_KEY = 'fp_window_settings';
 let windowSettings = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
@@ -85,24 +98,24 @@ function toggleWindow() {
     }
 }
 
-function makeDraggable(elmnt) {
+function makeDraggable(element) {
     let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-    elmnt.onmousedown = dragMouseDown;
+    element.onmousedown = dragMouseDown;
 
     function dragMouseDown(e) {
         if (e.target.closest('.no-drag')) return;
 
-        const rect = elmnt.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
         const isResizeZone = (e.clientX > rect.right - 20) && (e.clientY > rect.bottom - 20);
 
         if (isResizeZone) return;
 
         e.preventDefault();
 
-        if (elmnt.style.transform && elmnt.style.transform !== 'none') {
-            elmnt.style.left = rect.left + "px";
-            elmnt.style.top = rect.top + "px";
-            elmnt.style.transform = "none";
+        if (element.style.transform && element.style.transform !== 'none') {
+            element.style.left = rect.left + "px";
+            element.style.top = rect.top + "px";
+            element.style.transform = "none";
         }
 
         pos3 = e.clientX;
@@ -111,7 +124,7 @@ function makeDraggable(elmnt) {
         document.onmouseup = closeDragElement;
         document.onmousemove = elementDrag;
 
-        elmnt.classList.add('is-dragging');
+        element.classList.add('is-dragging');
     }
 
     function elementDrag(e) {
@@ -121,17 +134,68 @@ function makeDraggable(elmnt) {
         pos3 = e.clientX;
         pos4 = e.clientY;
 
-        elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
-        elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+        let newTop = element.offsetTop - pos2;
+        let newLeft = element.offsetLeft - pos1;
+
+        const winWidth = window.innerWidth;
+        const winHeight = window.innerHeight;
+        const elWidth = element.offsetWidth;
+        const elHeight = element.offsetHeight;
+
+        if (newTop < 0) {
+            newTop = 0;
+        } else if (newTop + elHeight > winHeight) {
+            newTop = winHeight - elHeight;
+        }
+
+        if (newLeft < 0) {
+            newLeft = 0;
+        } else if (newLeft + elWidth > winWidth) {
+            newLeft = winWidth - elWidth;
+        }
+
+        element.style.top = newTop + "px";
+        element.style.left = newLeft + "px";
     }
 
     function closeDragElement() {
         document.onmouseup = null;
         document.onmousemove = null;
-        elmnt.classList.remove('is-dragging');
-        saveWindowSettings(elmnt);
+        element.classList.remove('is-dragging');
+        saveWindowSettings(element);
     }
 }
+
+window.addEventListener('resize', () => {
+    const win = document.getElementById('faceit-predict-window');
+    if (!win) return;
+
+    const rect = win.getBoundingClientRect();
+    const winWidth = window.innerWidth;
+    const winHeight = window.innerHeight;
+
+    let newTop = rect.top;
+    let newLeft = rect.left;
+    let updated = false;
+
+    if (rect.bottom > winHeight) {
+        newTop = Math.max(0, winHeight - rect.height);
+        updated = true;
+    }
+    if (rect.right > winWidth) {
+        newLeft = Math.max(0, winWidth - rect.width);
+        updated = true;
+    }
+
+    if (updated) {
+        win.style.top = newTop + "px";
+        win.style.left = newLeft + "px";
+        if (win.style.transform === 'translateX(-50%)') {
+            win.style.transform = 'none';
+        }
+        saveWindowSettings(win);
+    }
+});
 
 
 function getTeamNames() {
@@ -380,18 +444,27 @@ function findAndFetchMatchInfo(infoBox) {
 }
 
 function getMatchIdFromPerformance() {
-    const resources = performance.getEntries();
+    if (lastSeenMatchId) return lastSeenMatchId;
+
+    const urlMatch = window.location.pathname.match(/(1-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/);
+    if (urlMatch) return urlMatch[1];
+
+    const resources = performance.getEntriesByType('resource');
     for (let i = resources.length - 1; i >= 0; i--) {
         const url = resources[i].name;
-        if (url.includes('/match/v2/match/')) {
-            const match = url.match(/(1-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/);
-            if (match && match[1]) return match[1];
-        }
-        if (url.includes('faceit.com') && url.includes('1-')) {
-            const fallbackMatch = url.match(/(1-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/);
-            if (fallbackMatch && fallbackMatch[1]) return fallbackMatch[1];
+        const match = url.match(/(1-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/);
+        if (match && match[1]) {
+            lastSeenMatchId = match[1];
+            return match[1];
         }
     }
+
+    const modalLinks = document.querySelectorAll('a[href*="/room/"]');
+    for (let link of modalLinks) {
+        const m = link.href.match(/(1-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/);
+        if (m) return m[1];
+    }
+
     return null;
 }
 

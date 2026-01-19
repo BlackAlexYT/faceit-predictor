@@ -1,23 +1,36 @@
 {
   "manifest_version": 3,
   "name": "Faceit Predictor",
-  "version": "2.0",
+  "version": "2.1",
   "description": "Win probability for Faceit CS2 matches. Github: https://github.com/BlackAlexYT/FaceitPredictor",
-  "permissions": ["activeTab"],
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://fc.blalex.ru/*",
     "*://*.faceit.com/*"
   ],
   "content_scripts": [
     {
-      "matches": ["*://*.faceit.com/*"],
-      "js": ["content.js"],
-      "css": ["styles.css"]
+      "matches": [
+        "*://*.faceit.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ]
     }
   ],
   "browser_specific_settings": {
     "gecko": {
-      "id": "faceit-predictor@blalex.ru"
+      "id": "faceit-predictor@blalex.ru",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
     }
   },
   "icons": {
@@ -35,8 +48,12 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["logo.png"],
-      "matches": ["*://*.faceit.com/*"]
+      "resources": [
+        "logo.png"
+      ],
+      "matches": [
+        "*://*.faceit.com/*"
+      ]
     }
   ]
 }
