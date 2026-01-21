@@ -3,9 +3,7 @@
   "name": "Faceit Predictor",
   "version": "2.1",
   "description": "Win probability for Faceit CS2 matches. Github: https://github.com/BlackAlexYT/FaceitPredictor",
-  "permissions": [
-    "storage"
-  ],
+  "permissions": [],
   "host_permissions": [
     "https://fc.blalex.ru/*",
     "*://*.faceit.com/*"
