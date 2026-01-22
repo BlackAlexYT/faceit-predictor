@@ -83,6 +83,82 @@
     color: #ff5500;
 }
 
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.control-btn {
+    cursor: pointer;
+    color: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.control-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+.control-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.settings-view {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.settings-section {
+    background: #161616;
+    border: 1px solid #222;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+.settings-section h4 {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    color: #ff5500;
+    text-transform: uppercase;
+    font-weight: 700;
+    border-bottom: 1px solid #333;
+    padding-bottom: 4px;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #ddd;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-row input {
+    accent-color: #ff5500;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
 .minimize-btn {
     cursor: pointer;
     font-size: 18px;
@@ -214,6 +290,77 @@
     height: 100%;
     background: #ff5500;
     transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fp-player-stats-table {
+    width: 100%;
+    background: #050505;
+    border-top: 2px solid #ff5500;
+    padding: 8px;
+    margin-top: -4px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+    z-index: 5;
+    font-family: "Play", sans-serif;
+}
+
+.fp-table-header {
+    display: grid;
+    gap: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #333;
+    margin-bottom: 2px;
+}
+
+.fp-col-header {
+    font-size: 12px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.fp-col-header.first {
+    text-align: left;
+    color: #ff5500;
+}
+
+.fp-table-row {
+    display: grid;
+    gap: 4px;
+    align-items: center;
+    padding: 2px 0;
+}
+
+.fp-table-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.fp-cell {
+    font-size: 14px;
+    font-weight: 700;
+    color: #eee;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.fp-cell.label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #aaa;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.val-good { color: #22c55e; }
+.val-bad { color: #ef4444; }
+.val-neutral { color: #ccc; }
+
+.fp-row-map .label {
+    color: #ff5500;
 }
 
 .panel-footer {

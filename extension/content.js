@@ -4,6 +4,71 @@ let currentMatchId = null;
 let isWindowVisible = false;
 let currentPredictionData = null;
 let lastSeenMatchId = null;
+let currentView = 'prediction';
+
+
+const DEFAULT_CONFIG = {
+    rows: {
+        life: true,
+        rec50: true,
+        rec5: true
+    },
+    columns: {
+        matches: true,
+        wr: true,
+        kd: true,
+        adr: true,
+        avg_k: true,
+        avg_a: false,
+        avg_d: false,
+        hs: false
+    },
+    maps: {
+        mirage: true,
+        dust2: true,
+        inferno: true,
+        nuke: true,
+        ancient: true,
+        anubis: true,
+        overpass: false,
+        train: false
+    }
+};
+
+let userConfig = JSON.parse(localStorage.getItem('fp_user_config')) || DEFAULT_CONFIG;
+
+const COLUMN_LABELS = {
+    matches: "M",
+    wr: "WR%",
+    kd: "K/D",
+    adr: "ADR",
+    avg_k: "AVG K",
+    avg_a: "AVG A",
+    avg_d: "AVG D",
+    hs: "HS%"
+};
+
+const STAT_AVERAGES = {
+    matches: 1000,
+    wr: 47,
+    kd: 1.05,
+    adr: 70,
+    hs: 44,
+    avg_k: 14.5,
+    avg_a: 4,
+    avg_d: 14.5
+};
+
+const MAP_AVERAGES = {
+    ancient: 92,
+    anubis: 60,
+    dust2: 114,
+    inferno: 55,
+    mirage: 161,
+    nuke: 42,
+    overpass: 18,
+    train: 21
+};
 
 const networkObserver = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
@@ -47,7 +112,7 @@ function createInterface() {
 
     const fab = document.createElement('div');
     fab.id = 'faceit-predictor-fab';
-    fab.innerHTML = `<img src="${imgUrl}" alt="Open Predictor">`;
+    fab.innerHTML = `<img src="${imgUrl}" alt="FP">`;
     fab.onclick = toggleWindow;
     document.body.appendChild(fab);
 
@@ -60,22 +125,31 @@ function createInterface() {
     windowEl.style.height = windowSettings.height;
     if (windowSettings.transform) windowEl.style.transform = windowSettings.transform;
 
+    const settingsIcon = `<svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>`;
+    const closeIcon = `<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>`;
+
     windowEl.innerHTML = `
-        <div class="window-header" id="fp-header">
+        <div class="window-header">
             <div class="header-left">
-                <img src="${imgUrl}" class="header-logo" alt="">
+                <img src="${imgUrl}" class="header-logo">
                 <span class="window-title">PREDICTOR</span>
             </div>
-            <span class="minimize-btn no-drag" id="fp-minimize">−</span>
+            <div class="header-controls">
+                <div class="control-btn no-drag" id="fp-settings" title="Settings">${settingsIcon}</div>
+                <div class="control-btn no-drag" id="fp-close" title="Close">${closeIcon}</div>
+            </div>
         </div>
-        <div class="window-content" id="fp-content">
-        </div>
+        <div class="window-content" id="fp-content"></div>
     `;
     document.body.appendChild(windowEl);
 
-    document.getElementById('fp-minimize').onclick = (e) => {
+    document.getElementById('fp-close').onclick = (e) => {
         e.stopPropagation();
         toggleWindow();
+    };
+    document.getElementById('fp-settings').onclick = (e) => {
+        e.stopPropagation();
+        toggleSettingsView();
     };
 
     makeDraggable(windowEl);
@@ -85,6 +159,257 @@ function createInterface() {
     }).observe(windowEl);
 
     checkCurrentPage();
+}
+
+function toggleSettingsView() {
+    currentView = currentView === 'prediction' ? 'settings' : 'prediction';
+    if (currentView === 'settings') renderSettings();
+    else {
+        if (currentPredictionData) {
+            renderPanel(currentPredictionData);
+            injectPlayerStats(currentPredictionData);
+        } else checkCurrentPage();
+    }
+}
+
+function renderSettings() {
+    const contentBox = document.getElementById('fp-content');
+
+    const createCheckboxes = (obj, sectionKey) => {
+        return Object.keys(obj).map(key => {
+            let label = key.replace(/_/g, ' ').toUpperCase();
+            if (COLUMN_LABELS[key]) label = COLUMN_LABELS[key];
+            return `
+            <label class="checkbox-row">
+                <input type="checkbox" data-section="${sectionKey}" data-key="${key}" ${obj[key] ? 'checked' : ''}>
+                ${label}
+            </label>`;
+        }).join('');
+    };
+
+    contentBox.innerHTML = `
+        <div class="settings-view">
+            <div class="settings-section">
+                <h4>Displayed Rows</h4>
+                <div class="settings-grid">
+                    ${createCheckboxes(userConfig.rows, 'rows')}
+                </div>
+            </div>
+            <div class="settings-section">
+                <h4>Data Columns</h4>
+                <div class="settings-grid">
+                    ${createCheckboxes(userConfig.columns, 'columns')}
+                </div>
+            </div>
+            <div class="settings-section">
+                <h4>Maps to Show</h4>
+                <div class="settings-grid">
+                    ${createCheckboxes(userConfig.maps, 'maps')}
+                </div>
+            </div>
+        </div>
+    `;
+
+    const inputs = contentBox.querySelectorAll('input[type="checkbox"]');
+    inputs.forEach(input => {
+        input.onchange = () => {
+            const sec = input.dataset.section;
+            const key = input.dataset.key;
+            if (userConfig[sec]) userConfig[sec][key] = input.checked;
+            localStorage.setItem('fp_user_config', JSON.stringify(userConfig));
+
+            if (currentPredictionData) {
+                injectPlayerStats(currentPredictionData);
+            }
+        };
+    });
+}
+
+function getColor(val, type, mapName = null) {
+    let avg = 0;
+    let isInverse = false;
+
+    if (type === 'matches' && mapName) {
+        avg = MAP_AVERAGES[mapName.toLowerCase()] || 100;
+    } else {
+        switch (type) {
+            case 'matches':
+                avg = STAT_AVERAGES.matches;
+                break;
+            case 'wr':
+                avg = STAT_AVERAGES.wr;
+                break;
+            case 'kd':
+                avg = STAT_AVERAGES.kd;
+                break;
+            case 'adr':
+                avg = STAT_AVERAGES.adr;
+                break;
+            case 'hs':
+                avg = STAT_AVERAGES.hs;
+                break;
+            case 'avg_k':
+                avg = STAT_AVERAGES.avg_k;
+                break;
+            case 'avg_a':
+                avg = STAT_AVERAGES.avg_a;
+                break;
+            case 'avg_d':
+                avg = STAT_AVERAGES.avg_d;
+                isInverse = true;
+                break;
+            default:
+                avg = 0;
+        }
+    }
+
+    if (!avg || val === null || val === undefined) return '#ccc';
+
+    let score = 0;
+    const diff = val - avg;
+
+    if (type === 'wr') score = diff / 10;
+    else if (type === 'kd') score = diff / 0.3;
+    else if (type === 'adr') score = diff / 15;
+    else if (type === 'hs') score = diff / 10;
+    else if (type.includes('avg')) score = diff / 4;
+    else if (type === 'matches') score = diff / (mapName ? (avg * 0.8) : 800);
+
+    if (isInverse) score *= -1;
+
+    score = Math.max(-1, Math.min(1, score));
+
+    if (score >= 0) {
+        const factor = score;
+        const r = Math.round(255 + (34 - 255) * factor);
+        const g = Math.round(215 + (197 - 215) * factor);
+        const b = Math.round(0 + (94 - 0) * factor);
+        return `rgb(${r},${g},${b})`;
+    } else {
+        const factor = Math.abs(score);
+        const r = Math.round(255 + (239 - 255) * factor);
+        const g = Math.round(215 + (68 - 215) * factor);
+        const b = Math.round(0 + (68 - 0) * factor);
+        return `rgb(${r},${g},${b})`;
+    }
+}
+
+function injectPlayerStats(data, attempt = 0) {
+    if (!data || !data.match_data) return;
+
+    const activeCols = Object.keys(userConfig.columns).filter(k => userConfig.columns[k]);
+    const gridTemplate = `45px repeat(${activeCols.length}, 1fr)`;
+
+    const fmt = (val, type, mapName = null) => {
+        if (val === undefined || val === null) return '-';
+        const num = parseFloat(val);
+
+        const color = getColor(num, type, mapName);
+
+        let text = num.toFixed(0);
+        if (type === 'wr' || type === 'hs') text = num.toFixed(0) + '%';
+        else if (type === 'kd') text = num.toFixed(2);
+        else if (type.includes('avg')) text = num.toFixed(1);
+
+        return `<span style="color:${color}">${text}</span>`;
+    };
+
+    const buildRow = (label, dataPrefix, dataObj, isMapRow = false) => {
+        let cells = `<div class="fp-cell label">${label}</div>`;
+        const mapNameForColor = isMapRow ? label : null;
+
+        activeCols.forEach(colKey => {
+            let apiSuffix = '';
+            switch (colKey) {
+                case 'matches':
+                    apiSuffix = 'matches';
+                    break;
+                case 'wr':
+                    apiSuffix = 'wr';
+                    break;
+                case 'kd':
+                    apiSuffix = 'kd';
+                    break;
+                case 'adr':
+                    apiSuffix = 'adr';
+                    break;
+                case 'hs':
+                    apiSuffix = 'hs';
+                    break;
+                case 'avg_k':
+                    apiSuffix = 'k';
+                    break;
+                case 'avg_a':
+                    apiSuffix = 'a';
+                    break;
+                case 'avg_d':
+                    apiSuffix = 'd';
+                    break;
+            }
+
+            let val = dataObj[`${dataPrefix}${apiSuffix}`];
+
+            cells += `<div class="fp-cell">${fmt(val, colKey, mapNameForColor)}</div>`;
+        });
+
+        return `<div class="fp-table-row" style="grid-template-columns: ${gridTemplate}">${cells}</div>`;
+    };
+
+    const buildHeader = () => {
+        let cells = `<div class="fp-col-header first">PER</div>`;
+        activeCols.forEach(col => {
+            cells += `<div class="fp-col-header">${COLUMN_LABELS[col]}</div>`;
+        });
+        return `<div class="fp-table-header" style="grid-template-columns: ${gridTemplate}">${cells}</div>`;
+    };
+
+    const getTableHtml = (t, p) => {
+        const d = data.match_data;
+        const prefix = `t${t}_p${p}_`;
+
+        let html = `<div class="fp-player-stats-table">`;
+        html += buildHeader();
+
+        if (userConfig.rows.life) html += buildRow('LIFE', `${prefix}life_`, d);
+        if (userConfig.rows.rec50) html += buildRow('LAST 50', `${prefix}rec50_`, d);
+        if (userConfig.rows.rec5) html += buildRow('LAST 5', `${prefix}rec5_`, d);
+
+        const activeMaps = Object.keys(userConfig.maps).filter(m => userConfig.maps[m]);
+        activeMaps.forEach(mapName => {
+            const mapMatches = d[`${prefix}${mapName}_matches`];
+            if (mapMatches && mapMatches > 0) {
+                const fullMapName = mapName.charAt(0).toUpperCase() + mapName.slice(1);
+                const shortName = mapName.substring(0, 3).toUpperCase();
+                html += `<div class="fp-row-map">${buildRow(shortName, `${prefix}${mapName}_`, d, fullMapName)}</div>`;
+            }
+        });
+
+        html += `</div>`;
+        return html;
+    };
+
+    const roster1 = document.querySelector('div[name="roster1"]');
+    const roster2 = document.querySelector('div[name="roster2"]');
+
+    if ((!roster1 || !roster2) && attempt < 10) {
+        console.log(`[FP-DEBUG] Rosters not ready. Retrying in 3s... (Attempt ${attempt + 1}/10)`);
+        setTimeout(() => injectPlayerStats(data, attempt + 1), 500);
+        return;
+    }
+
+    const injectToRoster = (rosterEl, teamId) => {
+        if (!rosterEl) return;
+        const playerRows = rosterEl.querySelectorAll('[class*="ListContentPlayer__Background"]');
+        playerRows.forEach((row, index) => {
+            if (index > 4) return;
+            const oldTable = row.querySelector('.fp-player-stats-table');
+            if (oldTable) oldTable.remove();
+            row.insertAdjacentHTML('beforeend', getTableHtml(teamId, index));
+        });
+    };
+
+    injectToRoster(roster1, 1);
+    injectToRoster(roster2, 2);
 }
 
 
@@ -275,6 +600,7 @@ async function fetchPredictions(matchId) {
 
         currentPredictionData = data;
         injectIntoVetoList(data);
+        injectPlayerStats(data);
 
         renderPanel(data);
         pollTeamNames();
@@ -309,10 +635,12 @@ function renderPanel(data) {
         `;
     }
 
+    const currentNames = getTeamNames();
+
     contentBox.innerHTML = `
         <div class="header-teams">
-            <span class="team-n team-t1-name">LOADING...</span>
-            <span class="team-n team-t2-name">LOADING...</span>
+            <span class="team-n team-t1-name">${currentNames.t1}</span>
+            <span class="team-n team-t2-name">${currentNames.t2}</span>
         </div>
         <div class="panel-body">${rowsHtml}</div>
         <div class="panel-footer">
@@ -320,15 +648,23 @@ function renderPanel(data) {
             <div>${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
         </div>
     `;
+
+    pollTeamNames()
 }
 
 
-function injectIntoVetoList(data) {
+function injectIntoVetoList(data, attempt = 0) {
     if (!data || !data.predictions) return;
 
     const teams = getTeamNames();
     const container = document.querySelector('.VetoList__Container-sc-33cc227e-0') ||
         document.querySelector('[class*="VetoList__Container"]');
+
+    if ((!container) && attempt < 10) {
+        console.log(`[FP-DEBUG] Veto list not found. Retrying in 3s... (Attempt ${attempt + 1}/10)`);
+        setTimeout(() => injectIntoVetoList(data, attempt + 1), 500);
+        return;
+    }
 
     if (!container) return;
 

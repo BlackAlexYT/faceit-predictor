@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Faceit Predictor",
-  "version": "2.1",
+  "version": "2.2",
   "description": "Win probability for Faceit CS2 matches. Github: https://github.com/BlackAlexYT/FaceitPredictor",
   "permissions": [],
   "host_permissions": [
