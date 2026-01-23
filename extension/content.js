@@ -9,7 +9,7 @@ let currentView = 'prediction';
 
 const DEFAULT_CONFIG = {
     rows: {
-        life: true,
+        life: false,
         rec50: true,
         rec5: true
     },
@@ -24,14 +24,13 @@ const DEFAULT_CONFIG = {
         hs: false
     },
     maps: {
-        mirage: true,
-        dust2: true,
-        inferno: true,
-        nuke: true,
-        ancient: true,
-        anubis: true,
+        mirage: false,
+        dust2: false,
+        inferno: false,
+        nuke: false,
+        ancient: false,
+        anubis: false,
         overpass: false,
-        train: false
     }
 };
 
@@ -67,7 +66,6 @@ const MAP_AVERAGES = {
     mirage: 161,
     nuke: 42,
     overpass: 18,
-    train: 21
 };
 
 const networkObserver = new PerformanceObserver((list) => {
