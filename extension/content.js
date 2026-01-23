@@ -5,6 +5,7 @@ let isWindowVisible = false;
 let currentPredictionData = null;
 let lastSeenMatchId = null;
 let currentView = 'prediction';
+let showMapsMode = false;
 
 
 const DEFAULT_CONFIG = {
@@ -24,13 +25,13 @@ const DEFAULT_CONFIG = {
         hs: false
     },
     maps: {
-        mirage: false,
-        dust2: false,
-        inferno: false,
-        nuke: false,
-        ancient: false,
-        anubis: false,
-        overpass: false,
+        dust2: true,
+        mirage: true,
+        nuke: true,
+        ancient: true,
+        inferno: true,
+        overpass: true,
+        anubis: true,
     }
 };
 
@@ -129,7 +130,7 @@ function createInterface() {
     windowEl.innerHTML = `
         <div class="window-header">
             <div class="header-left">
-                <img src="${imgUrl}" class="header-logo">
+                <img src="${imgUrl}" class="header-logo" alt="">
                 <span class="window-title">PREDICTOR</span>
             </div>
             <div class="header-controls">
@@ -224,7 +225,7 @@ function renderSettings() {
 }
 
 function getColor(val, type, mapName = null) {
-    let avg = 0;
+    let avg;
     let isInverse = false;
 
     if (type === 'matches' && mapName) {
@@ -281,13 +282,13 @@ function getColor(val, type, mapName = null) {
         const factor = score;
         const r = Math.round(255 + (34 - 255) * factor);
         const g = Math.round(215 + (197 - 215) * factor);
-        const b = Math.round(0 + (94 - 0) * factor);
+        const b = Math.round((94) * factor);
         return `rgb(${r},${g},${b})`;
     } else {
         const factor = Math.abs(score);
         const r = Math.round(255 + (239 - 255) * factor);
         const g = Math.round(215 + (68 - 215) * factor);
-        const b = Math.round(0 + (68 - 0) * factor);
+        const b = Math.round((68) * factor);
         return `rgb(${r},${g},${b})`;
     }
 }
@@ -296,7 +297,7 @@ function injectPlayerStats(data, attempt = 0) {
     if (!data || !data.match_data) return;
 
     const activeCols = Object.keys(userConfig.columns).filter(k => userConfig.columns[k]);
-    const gridTemplate = `45px repeat(${activeCols.length}, 1fr)`;
+    const gridTemplate = `60px repeat(${activeCols.length}, 1fr)`;
 
     const fmt = (val, type, mapName = null) => {
         if (val === undefined || val === null) return '-';
@@ -354,7 +355,14 @@ function injectPlayerStats(data, attempt = 0) {
     };
 
     const buildHeader = () => {
-        let cells = `<div class="fp-col-header first">PER</div>`;
+        const iconSvg = showMapsMode
+            ? `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>` // List
+            : `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>`; // Map
+
+        let cells = `<div class="fp-col-header first">
+                        <div class="fp-stats-toggle-btn" title="Toggle Maps/Stats">${iconSvg}</div>
+                     </div>`;
+
         activeCols.forEach(col => {
             cells += `<div class="fp-col-header">${COLUMN_LABELS[col]}</div>`;
         });
@@ -364,23 +372,24 @@ function injectPlayerStats(data, attempt = 0) {
     const getTableHtml = (t, p) => {
         const d = data.match_data;
         const prefix = `t${t}_p${p}_`;
-
         let html = `<div class="fp-player-stats-table">`;
         html += buildHeader();
 
-        if (userConfig.rows.life) html += buildRow('LIFE', `${prefix}life_`, d);
-        if (userConfig.rows.rec50) html += buildRow('LAST 50', `${prefix}rec50_`, d);
-        if (userConfig.rows.rec5) html += buildRow('LAST 5', `${prefix}rec5_`, d);
-
-        const activeMaps = Object.keys(userConfig.maps).filter(m => userConfig.maps[m]);
-        activeMaps.forEach(mapName => {
-            const mapMatches = d[`${prefix}${mapName}_matches`];
-            if (mapMatches && mapMatches > 0) {
-                const fullMapName = mapName.charAt(0).toUpperCase() + mapName.slice(1);
-                const shortName = mapName.substring(0, 3).toUpperCase();
-                html += `<div class="fp-row-map">${buildRow(shortName, `${prefix}${mapName}_`, d, fullMapName)}</div>`;
-            }
-        });
+        if (!showMapsMode) {
+            if (userConfig.rows.life) html += buildRow('LIFE', `${prefix}life_`, d);
+            if (userConfig.rows.rec50) html += buildRow('LAST 50', `${prefix}rec50_`, d);
+            if (userConfig.rows.rec5) html += buildRow('LAST 5', `${prefix}rec5_`, d);
+        } else {
+            const activeMaps = Object.keys(userConfig.maps).filter(m => userConfig.maps[m]);
+            activeMaps.forEach(mapName => {
+                const mapMatches = d[`${prefix}${mapName}_matches`];
+                if (mapMatches && mapMatches > 0) {
+                    const fullMapName = mapName.charAt(0).toUpperCase() + mapName.slice(1);
+                    const shortName = mapName.substring(0, 3).toUpperCase();
+                    html += `<div class="fp-row-map">${buildRow(shortName, `${prefix}${mapName}_`, d, fullMapName)}</div>`;
+                }
+            });
+        }
 
         html += `</div>`;
         return html;
@@ -390,7 +399,6 @@ function injectPlayerStats(data, attempt = 0) {
     const roster2 = document.querySelector('div[name="roster2"]');
 
     if ((!roster1 || !roster2) && attempt < 10) {
-        console.log(`[FP-DEBUG] Rosters not ready. Retrying in 3s... (Attempt ${attempt + 1}/10)`);
         setTimeout(() => injectPlayerStats(data, attempt + 1), 500);
         return;
     }
@@ -400,9 +408,38 @@ function injectPlayerStats(data, attempt = 0) {
         const playerRows = rosterEl.querySelectorAll('[class*="ListContentPlayer__Background"]');
         playerRows.forEach((row, index) => {
             if (index > 4) return;
+
             const oldTable = row.querySelector('.fp-player-stats-table');
             if (oldTable) oldTable.remove();
+
             row.insertAdjacentHTML('beforeend', getTableHtml(teamId, index));
+
+            const newTable = row.querySelector('.fp-player-stats-table');
+            if (newTable) {
+                const stopEvent = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                };
+                newTable.addEventListener('click', stopEvent);
+                newTable.addEventListener('mousedown', stopEvent);
+                newTable.addEventListener('dblclick', stopEvent);
+
+                const toggleBtn = newTable.querySelector('.fp-stats-toggle-btn');
+                if (toggleBtn) {
+                    toggleBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+
+                        showMapsMode = !showMapsMode;
+                        if (currentPredictionData) {
+                            injectPlayerStats(currentPredictionData);
+                        }
+                    });
+                    toggleBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+                }
+            }
         });
     };
 
