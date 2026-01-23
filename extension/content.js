@@ -22,7 +22,8 @@ const DEFAULT_CONFIG = {
         avg_k: true,
         avg_a: false,
         avg_d: false,
-        hs: false
+        hs: false,
+        rating: true
     },
     maps: {
         dust2: true,
@@ -45,7 +46,8 @@ const COLUMN_LABELS = {
     avg_k: "AVG K",
     avg_a: "AVG A",
     avg_d: "AVG D",
-    hs: "HS%"
+    hs: "HS%",
+    rating: ""
 };
 
 const STAT_AVERAGES = {
@@ -257,6 +259,9 @@ function getColor(val, type, mapName = null) {
                 avg = STAT_AVERAGES.avg_d;
                 isInverse = true;
                 break;
+            case 'rating':
+                avg = 10;
+                break;
             default:
                 avg = 0;
         }
@@ -273,6 +278,7 @@ function getColor(val, type, mapName = null) {
     else if (type === 'hs') score = diff / 10;
     else if (type.includes('avg')) score = diff / 4;
     else if (type === 'matches') score = diff / (mapName ? (avg * 0.8) : 800);
+    else if (type === 'rating') score = diff / 1.5;
 
     if (isInverse) score *= -1;
 
@@ -318,6 +324,45 @@ function injectPlayerStats(data, attempt = 0) {
         const mapNameForColor = isMapRow ? label : null;
 
         activeCols.forEach(colKey => {
+            if (colKey === 'rating') {
+                const valKD = parseFloat(dataObj[`${dataPrefix}kd`] || STAT_AVERAGES.kd);
+                const valWR = parseFloat(dataObj[`${dataPrefix}wr`] || STAT_AVERAGES.wr);
+                const valADR = parseFloat(dataObj[`${dataPrefix}adr`] || STAT_AVERAGES.adr);
+                const valK = parseFloat(dataObj[`${dataPrefix}k`] || STAT_AVERAGES.avg_k);
+                const valM = parseFloat(dataObj[`${dataPrefix}matches`] || 0);
+
+                let avgMatches = STAT_AVERAGES.matches;
+                let includeMatches = true;
+
+                if (label === 'LAST 5' || label === 'LAST 50') {
+                    includeMatches = false;
+                }
+                else if (isMapRow && MAP_AVERAGES[label.toLowerCase()]) {
+                    avgMatches = MAP_AVERAGES[label.toLowerCase()];
+                }
+
+                let totalScore = 0;
+
+                totalScore += (valKD - STAT_AVERAGES.kd) / 0.3;
+
+                totalScore += (valWR - STAT_AVERAGES.wr) / 10;
+
+                totalScore += (valADR - STAT_AVERAGES.adr) / 15;
+
+                totalScore += (valK - STAT_AVERAGES.avg_k) / 4;
+
+                if (includeMatches) {
+                    totalScore += (valM - avgMatches) / (avgMatches * 2);
+                }
+
+                const finalRating = 10 + totalScore;
+
+                const color = getColor(finalRating, 'rating');
+
+                cells += `<div class="fp-cell"><div class="fp-rating-square" style="background:${color}" title="Rating: ${finalRating.toFixed(2)}"></div></div>`;
+                return;
+            }
+
             let apiSuffix = '';
             switch (colKey) {
                 case 'matches':

@@ -420,6 +420,14 @@
     display: block;
 }
 
+.fp-rating-square {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: #333;
+    box-shadow: 0 0 2px rgba(0,0,0,0.5);
+}
+
 .val-good {
     color: #22c55e;
 }
