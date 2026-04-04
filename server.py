@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from parsers.parse_ongoing import process_match
+from curl_cffi.requests import AsyncSession
 
 models_cache = {}
 
@@ -84,7 +85,7 @@ async def get_predictions(match_id: str):
             return prediction_cache[match_id]
 
         log_info(f"Parse new match: {match_id}")
-        async with aiohttp.ClientSession() as session:
+        async with AsyncSession() as session:
             match_data = await process_match(session, match_id)
 
         if not match_data:

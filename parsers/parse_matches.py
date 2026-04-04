@@ -1,13 +1,14 @@
 import asyncio
 from typing import Any
-
-import aiohttp
+# Заменяем aiohttp на curl_cffi
+from curl_cffi.requests import AsyncSession
 import random
 import os
 import csv
 import time
 from datetime import datetime
 from fake_useragent import UserAgent
+
 try:
     from .config import api_key, proxies
 except ImportError:
@@ -39,10 +40,17 @@ semaphore_pubapi = asyncio.Semaphore(12)  # Approximately len(proxies)
 TRACKED_COUNTRIES = ['ru', 'ua', 'pl', 'kz', 'de', 'gb', 'fi', 'se', 'dk', 'fr']
 
 
-async def get_html(session: aiohttp.ClientSession, url: str) -> dict[Any, Any] | None | Any:
-    if url.startswith('https://www.faceit.com/api'):
+async def get_html(session: AsyncSession, url: str) -> dict[Any, Any] | None | Any:
+    is_public_api = url.startswith('https://www.faceit.com/api')
+
+    if is_public_api:
         current_semaphore = semaphore_pubapi
-        cur_headers = fake_headers
+        # Для публичного API НЕ передаем User-Agent вручную,
+        # его сам поставит impersonate, чтобы не было несоответствия с TLS
+        cur_headers = {
+            "Accept": "application/json",
+            "Referer": "https://www.faceit.com/en/",
+        }
     else:
         current_semaphore = semaphore_keyapi
         cur_headers = headers
@@ -52,29 +60,46 @@ async def get_html(session: aiohttp.ClientSession, url: str) -> dict[Any, Any] |
         async with current_semaphore:
             await asyncio.sleep(random.uniform(low, high))
             try:
-                async with session.get(url, headers=cur_headers, proxy=proxies[random.randint(0, len(proxies) - 1)],
-                                       timeout=20) as response:
-                    if response.status == 200:
-                        return await response.json()
-                    if response.status in [429, 1015]:
-                        await asyncio.sleep(60)
-                        print('REQUEST LIMIT', url)
-                        continue
+                response = await session.get(
+                    url,
+                    headers=cur_headers,
+                    proxy=random.choice(proxies), # Упростили выбор прокси
+                    timeout=20,
+                    impersonate="chrome110" if is_public_api else None
+                )
+
+                if response.status_code == 200:
+                    try:
+                        return response.json()
+                    except Exception:
+                        print(f"JSON Decode Error on {url}")
+                        return {}
+
+                if response.status_code in [429, 1015]:
+                    await asyncio.sleep(60)
+                    print('REQUEST LIMIT', url)
+                    continue
+
+                # Если 403 - значит Cloudflare все же поймал
+                if response.status_code == 403:
+                    print(f"BLOCKED (403) by Cloudflare: {url}")
                     return {}
+
+                return {}
             except Exception as e:
                 await asyncio.sleep(5)
-                print(f'EXCEPTION{e}, {url}')
+                print(f'EXCEPTION {e}, {url}')
                 continue
 
+async def get_html_without_proxy(session: AsyncSession, url: str) -> dict[Any, Any] | None | Any:
+    is_public_api = url.startswith('https://www.faceit.com/api')
 
-semaphore_keyapi_without = asyncio.Semaphore(25)
-semaphore_pubapi_without = asyncio.Semaphore(2)
-
-
-async def get_html_without_proxy(session: aiohttp.ClientSession, url: str) -> dict[Any, Any] | None | Any:
-    if url.startswith('https://www.faceit.com/api'):
+    if is_public_api:
         current_semaphore = semaphore_pubapi_without
-        cur_headers = fake_headers
+        cur_headers = {
+            "Accept": "application/json",
+            "Referer": "https://www.faceit.com/en/",
+        }
     else:
         current_semaphore = semaphore_keyapi_without
         cur_headers = headers
@@ -84,18 +109,30 @@ async def get_html_without_proxy(session: aiohttp.ClientSession, url: str) -> di
         async with current_semaphore:
             await asyncio.sleep(random.uniform(low, high))
             try:
-                async with session.get(url, headers=cur_headers, timeout=20) as response:
-                    if response.status == 200:
-                        return await response.json()
-                    if response.status in [429, 1015]:
-                        await asyncio.sleep(60)
-                        print('REQUEST LIMIT', url)
-                        continue
-                    return {}
+                response = await session.get(
+                    url,
+                    headers=cur_headers,
+                    timeout=20,
+                    impersonate="chrome110" if is_public_api else None
+                )
+
+                if response.status_code == 200:
+                    try:
+                        return response.json()
+                    except:
+                        return {}
+
+                if response.status_code in [429, 1015]:
+                    await asyncio.sleep(60)
+                    print('REQUEST LIMIT', url)
+                    continue
+                return {}
             except Exception as e:
                 await asyncio.sleep(5)
-                print(f'EXCEPTION{e}, {url}')
+                print(f'EXCEPTION {e}, {url}')
                 continue
+semaphore_keyapi_without = asyncio.Semaphore(25)
+semaphore_pubapi_without = asyncio.Semaphore(2)
 
 
 def rollback_stat(current_avg, current_count, match_value):
@@ -354,12 +391,13 @@ async def main():
         return
     with open(INPUT_CSV, 'r') as f:
         uids = [r['uid'] for r in csv.DictReader(f)]
-    async with aiohttp.ClientSession() as session:
+
+    # Заменяем aiohttp.ClientSession() на AsyncSession() из curl_cffi
+    async with AsyncSession() as session:
         batch_size = 1000
         for i in range(0, len(uids), batch_size):
             batch = uids[i: i + batch_size]
-            print(
-                f"[{datetime.now().strftime('%H:%M:%S')}] Processing batch {i // batch_size + 1}/{len(uids) // batch_size}...")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Processing batch {i // batch_size + 1}/{len(uids) // batch_size}...")
 
             tasks = [process_match_leakfree(session, uid) for uid in batch]
             batch_results = await asyncio.gather(*tasks)
@@ -369,7 +407,6 @@ async def main():
                 print(f"  -> Added matches to dataset: {len(results)}")
 
         await asyncio.sleep(3)
-
 
 if __name__ == '__main__':
     asyncio.run(main())
