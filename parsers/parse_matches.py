@@ -1,6 +1,6 @@
 import asyncio
 from typing import Any
-# Заменяем aiohttp на curl_cffi
+
 from curl_cffi.requests import AsyncSession
 import random
 import os
@@ -45,8 +45,6 @@ async def get_html(session: AsyncSession, url: str) -> dict[Any, Any] | None | A
 
     if is_public_api:
         current_semaphore = semaphore_pubapi
-        # Для публичного API НЕ передаем User-Agent вручную,
-        # его сам поставит impersonate, чтобы не было несоответствия с TLS
         cur_headers = {
             "Accept": "application/json",
             "Referer": "https://www.faceit.com/en/",
@@ -63,7 +61,7 @@ async def get_html(session: AsyncSession, url: str) -> dict[Any, Any] | None | A
                 response = await session.get(
                     url,
                     headers=cur_headers,
-                    proxy=random.choice(proxies), # Упростили выбор прокси
+                    proxy=random.choice(proxies),
                     timeout=20,
                     impersonate="chrome110" if is_public_api else None
                 )
@@ -80,7 +78,6 @@ async def get_html(session: AsyncSession, url: str) -> dict[Any, Any] | None | A
                     print('REQUEST LIMIT', url)
                     continue
 
-                # Если 403 - значит Cloudflare все же поймал
                 if response.status_code == 403:
                     print(f"BLOCKED (403) by Cloudflare: {url}")
                     return {}
@@ -392,7 +389,6 @@ async def main():
     with open(INPUT_CSV, 'r') as f:
         uids = [r['uid'] for r in csv.DictReader(f)]
 
-    # Заменяем aiohttp.ClientSession() на AsyncSession() из curl_cffi
     async with AsyncSession() as session:
         batch_size = 1000
         for i in range(0, len(uids), batch_size):
